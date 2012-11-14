@@ -40,10 +40,10 @@ function setText(id, str) {
     }
 }
 
-function sourceRewrite() {
+function minify() {
     'use strict';
 
-    var code, syntax, indent, quotes, option;
+    var code, syntax, option, before, after;
 
     setText('error', '');
     if (typeof window.editor !== 'undefined') {
@@ -54,47 +54,39 @@ function sourceRewrite() {
         code = id('code').value;
     }
 
-    indent = '';
-    if (id('onetab').checked) {
-        indent = '\t';
-    } else if (id('twospaces').checked) {
-        indent = '  ';
-    } else if (id('fourspaces').checked) {
-        indent = '    ';
-    }
-
-    quotes = 'auto';
-    if (id('singlequotes').checked) {
-        quotes = 'single';
-    } else if (id('doublequotes').checked) {
-        quotes = 'double';
-    }
-
     option = {
         format: {
             indent: {
-                style: indent
+                style: ''
             },
-            quotes: quotes
+            quotes: 'auto',
+            compact: true
         }
     };
 
     try {
-        syntax = window.esprima.parse(code, { raw: true });
+        before = code.length;
+        syntax = window.esprima.parse(code, { raw: true, range: true });
         code = window.escodegen.generate(syntax, option);
-    } catch (e) {
-        setText('error', e.toString());
-    } finally {
         if (typeof window.editor !== 'undefined') {
             window.editor.setValue(code);
         } else {
             id('code').value = code;
         }
+        after = code.length;
+        if (before > after) {
+            setText('error', 'No error. Minifying ' + before + ' bytes to ' + after + ' bytes.');
+        } else {
+            setText('error', 'Can not minify further, code is already optimized.');
+        }
+    } catch (e) {
+        setText('error', e.toString());
+    } finally {
     }
 }
 
 /*jslint sloppy:true browser:true */
-/*global sourceRewrite:true, CodeMirror:true */
+/*global minify:true, CodeMirror:true */
 window.onload = function () {
     var version, el;
 
@@ -108,7 +100,7 @@ window.onload = function () {
         el.textContent = version;
     }
 
-    id('rewrite').onclick = sourceRewrite;
+    id('minify').onclick = minify;
 
     try {
         window.checkEnv();
@@ -118,7 +110,8 @@ window.onload = function () {
 
         window.editor = CodeMirror.fromTextArea(id("code"), {
             lineNumbers: true,
-            matchBrackets: true
+            matchBrackets: true,
+            lineWrapping: true
         });
     } catch (e) {
         // CodeMirror failed to initialize, possible in e.g. old IE.
